@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Gera dist/DeckImageMTG (executável único para Linux)
+set -euo pipefail
+cd "$(dirname "$0")"
+[ -d .venv ] || python3 -m venv .venv
+.venv/bin/pip install -q -r requirements.txt pyinstaller
+.venv/bin/pyinstaller --noconfirm --onefile --windowed --name DeckImageMTG run.py
+echo "Pronto: dist/DeckImageMTG"
