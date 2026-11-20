@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import ssl
 import sys
 import threading
 import time
@@ -25,6 +26,19 @@ API = "https://api.scryfall.com"
 USER_AGENT = f"DeckImageMTG/{__version__}"
 MIN_INTERVAL = 0.1  # 100 ms
 COLLECTION_MAX = 75
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """Usa os certificados do certifi (vão dentro do executável), para não depender
+    de onde cada distro Linux guarda os seus."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:  # noqa: BLE001
+        return ssl.create_default_context()
+
+
+SSL_CTX = _ssl_context()
 
 
 class ScryfallError(Exception):
@@ -66,7 +80,7 @@ class Client:
             self.requests_made += 1
             req = urllib.request.Request(url, data=data, headers=headers)
             try:
-                with urllib.request.urlopen(req, timeout=30) as r:
+                with urllib.request.urlopen(req, timeout=30, context=SSL_CTX) as r:
                     return r.read()
             except urllib.error.HTTPError as e:
                 if e.code == 429 or e.code >= 500:
