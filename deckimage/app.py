@@ -9,7 +9,7 @@ import sys
 import threading
 from pathlib import Path
 
-from .build import FORMATS, downloads_dir, run
+from .build import FORMATS, downloads_dir, filename_from_title, run
 from .decklist import parse_lines
 
 EXAMPLE_MAIN = """4 Lightning Bolt
@@ -36,13 +36,24 @@ def open_file(path: Path):
         pass
 
 
+def asset(name: str) -> Path:
+    """Arquivo em deckimage/assets, tanto rodando do código quanto do executável do PyInstaller."""
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
+    return base / "deckimage" / "assets" / name
+
+
 def gui():
     import tkinter as tk
     from tkinter import messagebox, ttk
     from tkinter.scrolledtext import ScrolledText
 
-    root = tk.Tk()
+    root = tk.Tk(className="DeckImageMTG")  # WM_CLASS: o atalho .desktop casa a janela por ele
     root.title("Deck Image – MTG (projeto não oficial)")
+    try:
+        root._icon = tk.PhotoImage(file=str(asset("icon.png")))  # type: ignore[attr-defined]  # logo do Groselha Crew
+        root.iconphoto(True, root._icon)  # type: ignore[attr-defined]
+    except tk.TclError:
+        pass
     root.geometry("900x720")
     root.minsize(700, 560)
 
@@ -50,9 +61,11 @@ def gui():
 
     top = ttk.Frame(root, padding=10)
     top.pack(fill="x")
-    ttk.Label(top, text="Título (opcional):").pack(side="left")
+    ttk.Label(top, text="Título*:").pack(side="left")
     title_var = tk.StringVar()
-    ttk.Entry(top, textvariable=title_var, width=40).pack(side="left", padx=6)
+    title_entry = ttk.Entry(top, textvariable=title_var, width=40)
+    title_entry.pack(side="left", padx=6)
+    title_entry.focus_set()
     ttk.Label(top, text="Colunas:").pack(side="left", padx=(12, 0))
     cols_var = tk.IntVar(value=8)
     ttk.Spinbox(top, from_=3, to=15, textvariable=cols_var, width=4).pack(side="left", padx=6)
@@ -77,11 +90,22 @@ def gui():
 
     bottom = ttk.Frame(root, padding=10)
     bottom.pack(fill="x")
-    btn = ttk.Button(bottom, text="Gerar final.jpg")
+    btn = ttk.Button(bottom, text="Gerar imagem")
     btn.pack(side="left")
     pbar = ttk.Progressbar(bottom, mode="determinate")
     pbar.pack(side="left", fill="x", expand=True, padx=10)
-    ttk.Label(bottom, text=f"Salva em: {downloads_dir() / 'final.jpg'}", foreground="gray").pack(side="left")
+    out_dir = downloads_dir()
+    where = ttk.Label(bottom, foreground="gray")
+    where.pack(side="left")
+
+    def update_where(*_):
+        try:
+            where.configure(text=f"Salva em: {out_dir / filename_from_title(title_var.get())}")
+        except ValueError:
+            where.configure(text="Preencha o título (vira o nome do arquivo)")
+
+    title_var.trace_add("write", update_where)
+    update_where()
 
     log_txt = ScrolledText(root, height=8, state="disabled", font=("TkFixedFont", 10))
     log_txt.pack(fill="both", padx=10, pady=(0, 10))
@@ -106,6 +130,14 @@ def gui():
             events.put(("error", str(e)))
 
     def start():
+        try:
+            filename_from_title(title_var.get())
+        except ValueError:
+            messagebox.showwarning("Título obrigatório",
+                                   "Preencha o título do deck. Ele vai no topo da imagem e dá nome ao arquivo\n"
+                                   "(ex.: Mono Green Elves → mono_green_elves.jpg).")
+            title_entry.focus_set()
+            return
         btn.state(["disabled"])
         pbar["value"] = 0
         log_txt.configure(state="normal")
@@ -160,14 +192,18 @@ def gui():
 
 
 def cli(argv: list[str]):
-    p = argparse.ArgumentParser(prog="deckimage", description="Gera final.jpg com as cartas de uma lista MTG.")
+    p = argparse.ArgumentParser(prog="deckimage", description="Gera a imagem de uma lista MTG; o arquivo leva o nome do título.")
     p.add_argument("--main", type=Path, help="arquivo .txt do main deck (pode conter 'Sideboard')")
     p.add_argument("--side", type=Path, help="arquivo .txt do sideboard")
-    p.add_argument("--title", default="")
+    p.add_argument("--title", required=True, help="título do deck; também vira o nome do arquivo (Mono Green Elves -> mono_green_elves.jpg)")
     p.add_argument("--cols", type=int, default=8)
     p.add_argument("--format", default="premodern", help="filtro de legalidade (padrão premodern; 'none' desliga)")
-    p.add_argument("--out", type=Path, help="padrão: ~/Downloads/final.jpg")
+    p.add_argument("--out", type=Path, help="padrão: ~/Downloads/<titulo>.jpg")
     a = p.parse_args(argv)
+    try:
+        filename_from_title(a.title)
+    except ValueError as e:
+        p.error(f"--title: {e}")
     if not a.main and not a.side:
         p.error("informe --main e/ou --side (ou rode sem argumentos para abrir a janela)")
     main, side, bad = parse_lines(a.main.read_text(encoding="utf-8")) if a.main else ([], [], [])

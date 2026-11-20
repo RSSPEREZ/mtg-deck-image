@@ -4,5 +4,5 @@ set -euo pipefail
 cd "$(dirname "$0")"
 [ -d .venv ] || python3 -m venv .venv
 .venv/bin/pip install -q -r requirements.txt pyinstaller
-.venv/bin/pyinstaller --noconfirm --onefile --windowed --name DeckImageMTG run.py
+.venv/bin/pyinstaller --noconfirm --onefile --windowed --name DeckImageMTG --icon deckimage/assets/icon.ico --add-data "deckimage/assets:deckimage/assets" run.py
 echo "Pronto: dist/DeckImageMTG"

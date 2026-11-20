@@ -1,8 +1,10 @@
-"""Orquestra: lista -> Scryfall -> imagens -> final.jpg."""
+"""Orquestra: lista -> Scryfall -> imagens -> <titulo>.jpg."""
 from __future__ import annotations
 
 import os
+import re
 import subprocess
+import unicodedata
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +27,20 @@ DISCLAIMER = (
     "Projeto de fã não oficial. Magic: The Gathering e as imagens das cartas são © Wizards of the Coast. "
     "Dados e imagens via Scryfall. Não aprovado nem endossado pela Wizards."
 )
+
+
+_WIN_RESERVED = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)), *(f"lpt{i}" for i in range(1, 10))}
+
+
+def filename_from_title(title: str) -> str:
+    """'Mono Green Elves' -> 'mono_green_elves.jpg'. Tira acentos; o que não é letra/número vira '_'."""
+    ascii_ = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "_", ascii_.lower()).strip("_")[:100].rstrip("_")
+    if not slug:
+        raise ValueError("O título precisa ter pelo menos uma letra ou número.")
+    if slug in _WIN_RESERVED:
+        slug += "_deck"
+    return slug + ".jpg"
 
 
 @dataclass
@@ -258,9 +274,14 @@ def _drop_illegal(items: list[Resolved], fmt: str | None, log) -> tuple[list[Res
     return keep, illegal
 
 
-def run(main_entries: list[Entry], side_entries: list[Entry], *, title="", cols=8, fmt: str | None = "premodern",
+def run(main_entries: list[Entry], side_entries: list[Entry], *, title: str, cols=8, fmt: str | None = "premodern",
         out_path: Path | None = None, log=print, progress=None) -> tuple[Path, list[str], list[str]]:
-    """Devolve (caminho, nao_encontradas, fora_do_formato). fmt=None desliga o filtro."""
+    """Devolve (caminho, nao_encontradas, fora_do_formato). fmt=None desliga o filtro.
+    O título é obrigatório e dá nome ao arquivo (ver filename_from_title), salvo se out_path for passado."""
+    title = title.strip()
+    if not title:
+        raise ValueError("Informe o título do deck.")
+    out = out_path or downloads_dir() / filename_from_title(title)
     client = Client(log=log)
     log(f"Consultando Scryfall ({len(main_entries) + len(side_entries)} cartas distintas)"
         + (f", formato {fmt}…" if fmt else "…"))
@@ -270,7 +291,6 @@ def run(main_entries: list[Entry], side_entries: list[Entry], *, title="", cols=
     log("Baixando imagens (com cache local)…")
     fetch_images(client, all_items, progress)
     not_found = [r.entry.name for r in all_items if r.card is None]
-    out = out_path or downloads_dir() / "final.jpg"
     compose(main, side, out, title=title, cols=cols)
     log(f"Requisições feitas ao Scryfall: {client.requests_made}")
     return out, not_found, ill_main + ill_side

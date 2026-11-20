@@ -2,7 +2,7 @@
 
 App desktop gratuito e de código aberto, para **Linux e Windows**. Você cola o **main deck** e o **sideboard**
 de uma lista de Magic: The Gathering, ele busca as cartas no [Scryfall](https://scryfall.com/docs/api) e gera
-uma imagem única, **`final.jpg`**, na sua pasta **Downloads**.
+uma imagem única na sua pasta **Downloads**, com o nome do deck: o título *Mono Green Elves* vira **`mono_green_elves.jpg`**.
 
 O padrão é o formato **Premodern**, com as imagens das coleções de **Fourth Edition até Scourge** (1995–2003).
 
@@ -69,12 +69,14 @@ Sem `git`, use **Code → Download ZIP** aqui no GitHub e extraia a pasta.
 ### Pela janela
 
 1. Cole o **main deck** no campo da esquerda e o **sideboard** no da direita.
-2. Se quiser, preencha o **título** (aparece no topo da imagem), o número de **colunas** e o **formato**.
-3. Clique em **Gerar final.jpg**.
+2. Preencha o **título** (obrigatório): ele aparece no topo da imagem e dá nome ao arquivo.
+   Se quiser, ajuste o número de **colunas** e o **formato**.
+3. Clique em **Gerar imagem**.
 4. No fim, o app mostra onde salvou a imagem, quais cartas ficaram de fora e se quer abrir a imagem.
 
-A imagem vai para `~/Downloads/final.jpg` no Linux e para `C:\Users\<você>\Downloads\final.jpg` no Windows.
-Cada geração **substitui** o `final.jpg` anterior.
+A imagem vai para a pasta Downloads (`~/Downloads` no Linux, `C:\Users\<você>\Downloads` no Windows).
+O nome do arquivo sai do título: minúsculas, sem acentos, e o que não for letra ou número vira `_`
+(*Goblins – Premodern* → `goblins_premodern.jpg`). Gerar de novo com o mesmo título **substitui** o arquivo anterior.
 
 ### Formato da lista
 
@@ -108,10 +110,10 @@ python run.py --main deck.txt --side side.txt --title "Goblins"
 |---|---|---|
 | `--main` | — | arquivo `.txt` do main deck (pode conter a linha `Sideboard`) |
 | `--side` | — | arquivo `.txt` do sideboard |
-| `--title` | vazio | título no topo da imagem |
+| `--title` | **obrigatório** | título no topo da imagem; também dá nome ao arquivo |
 | `--format` | `premodern` | filtro de legalidade (`legacy`, `vintage`, `pauper`, `oldschool`… ou `none` para desligar) |
 | `--cols` | `8` | cartas por linha |
-| `--out` | `Downloads/final.jpg` | caminho da imagem gerada |
+| `--out` | `Downloads/<titulo>.jpg` | caminho da imagem gerada (ignora o nome derivado do título) |
 
 O comando retorna código `1` quando alguma carta não foi encontrada ou ficou fora do formato.
 
@@ -166,6 +168,7 @@ deckimage/decklist.py  leitura da lista
 deckimage/scryfall.py  cliente da API (rate limit, headers, lote, cache)
 deckimage/build.py     resolução das cartas, filtro de formato e montagem da imagem
 deckimage/app.py       janela (Tkinter) e linha de comando
+deckimage/assets/      ícone da janela e do executável (logo do Groselha Crew)
 ```
 
 ## Contribuindo
@@ -177,4 +180,5 @@ e à Fan Content Policy (nada de logos oficiais nem de cobrar pelo acesso às im
 ## Licença
 
 Código sob a [licença MIT](LICENSE). A licença cobre só o código-fonte: as imagens e os dados das cartas
-pertencem à Wizards of the Coast e são fornecidos pelo Scryfall.
+pertencem à Wizards of the Coast e são fornecidos pelo Scryfall. O ícone do app é o logo do
+[Groselha Crew](https://groselhacrew.com.br) e não faz parte da licença MIT.
