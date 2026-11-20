@@ -1,19 +1,24 @@
+// Goblins — 1º lugar, MTGO Premodern Online, 28/09/2026 (40 jogadores)
+// Fonte: https://premodernchronicles.com/decks/goblins-mtgo-premodern-online-2026-09
 4 Goblin Lackey
 4 Goblin Matron
 4 Goblin Piledriver
 4 Goblin Ringleader
 4 Goblin Warchief
 4 Mogg Fanatic
-4 Skirk Prospector
-2 Siege-Gang Commander
+3 Siege-Gang Commander
 2 Gempalm Incinerator
+1 Goblin King
+1 Goblin Sharpshooter
+1 Goblin Tinkerer
+4 Final Fortune
+16 Mountain
 4 Rishadan Port
 4 Wasteland
-16 Mountain
 
 Sideboard
-4 Pyrokinesis
 4 Pyroblast
-3 Tormod's Crypt
+4 Mogg Salvage
+3 Pyrokinesis
+2 Red Elemental Blast
 2 Anarchy
-2 Price of Progress

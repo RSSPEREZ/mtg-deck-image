@@ -8,8 +8,10 @@ O padrão é o formato **Premodern**, com a **primeira edição** de cada carta,
 
 ![Exemplo: imagem gerada a partir de uma lista de Goblins no Premodern](docs/exemplo-goblins.jpg)
 
-<sub>Exemplo gerado a partir de [`docs/exemplo-goblins.txt`](docs/exemplo-goblins.txt). Para reproduzir:
-`python run.py --main docs/exemplo-goblins.txt --title "Goblins – Premodern"`.</sub>
+<sub>Lista de Goblins campeã do MTGO Premodern Online de 28/09/2026 (40 jogadores), publicada no
+[Premodern Chronicles](https://premodernchronicles.com/decks/goblins-mtgo-premodern-online-2026-09).
+Está em [`docs/exemplo-goblins.txt`](docs/exemplo-goblins.txt); para reproduzir:
+`python run.py --main docs/exemplo-goblins.txt --title "Goblins Premodern"`.</sub>
 
 > **Projeto de fã não oficial.** Magic: The Gathering, seus logos e as imagens das cartas são © Wizards of the Coast.
 > Este projeto não é aprovado nem endossado pela Wizards of the Coast. Dados e imagens via Scryfall.
@@ -68,17 +70,33 @@ Sem `git`, use **Code → Download ZIP** aqui no GitHub e extraia a pasta.
 
 ### Pela janela
 
-![Janela do DeckImageMTG depois de gerar uma imagem](docs/janela.png)
+**1. Preencha.** Dê um **título** ao deck (obrigatório): ele aparece no topo da imagem e dá nome ao arquivo,
+mostrado logo abaixo do campo. Cole o **main deck** à esquerda e o **sideboard** à direita. Os botões **Colar** e
+**Limpar** ajudam no Steam Deck, e dá para colar a lista inteira no campo do main, com a linha `Sideboard` no meio.
+Cada lista mostra a contagem de cartas e avisa se faltam cartas para 60 ou se o side passou de 15, nos formatos que
+têm essas regras. Se quiser, ajuste as **colunas**, o **formato** e a **pasta** de saída (*Alterar pasta…*).
 
-1. Dê um **título** ao deck (obrigatório): ele aparece no topo da imagem e dá nome ao arquivo.
-2. Cole o **main deck** no campo da esquerda e o **sideboard** no da direita (os botões **Colar** e **Limpar**
-   ajudam no Steam Deck). Cada lista mostra a contagem de cartas e avisa se faltam cartas para 60 ou se o side
-   passou de 15, nos formatos que têm essas regras.
-3. Se quiser, ajuste as **colunas**, o **formato** e a **pasta** onde a imagem será salva (*Alterar pasta…*).
-4. Clique em **Gerar imagem** (ou **Ctrl+Enter**). Durante a geração, o botão vira **Cancelar**.
-5. No painel **Resultado** aparecem a prévia, as cartas corrigidas por aproximação, removidas (fora do formato) ou
-   não encontradas, e os botões **Abrir imagem**, **Abrir pasta** e **Copiar caminho**. As linhas com problema
-   ficam marcadas na própria lista. *Ver log* mostra os detalhes técnicos.
+![Janela preenchida com uma lista de Goblins, pronta para gerar](docs/janela-preenchida.png)
+
+**2. Gere.** Clique em **Gerar imagem** (ou **Ctrl+Enter**). A barra mostra a carta que está sendo baixada e o tempo
+restante; o botão vira **Cancelar**, e cancelar não grava nada. As imagens ficam em cache, então gerar de novo é rápido.
+
+![Janela durante a geração, com a barra de progresso e o botão Cancelar](docs/janela-gerando.png)
+
+**3. Pronto.** O painel **Resultado** mostra a prévia (clique para abrir) e os botões **Abrir imagem**,
+**Abrir pasta** e **Copiar caminho**. *Ver log* mostra os detalhes técnicos.
+
+![Janela depois de gerar: prévia da imagem e botões para abrir](docs/janela-resultado.png)
+
+**Quando algo não bate**, o resumo lista as cartas e as linhas ficam marcadas na própria lista:
+
+- **corrigida** (âmbar): nome com erro de digitação, achado por aproximação (*Gobln Matron → Goblin Matron*);
+- **removida** (riscada): fora do formato escolhido, não entra na imagem (*Goblin Chainwhirler* no Premodern);
+- **não encontrada** (sublinhada): não existe no Scryfall; vira um espaço "Não encontrada" na imagem.
+
+A marcação some assim que você edita a lista.
+
+![Janela com uma carta corrigida, uma removida e uma não encontrada marcadas na lista](docs/janela-avisos.png)
 
 A imagem vai para a pasta Downloads (`~/Downloads` no Linux, `C:\Users\<você>\Downloads` no Windows).
 O nome do arquivo sai do título: minúsculas, sem acentos, e o que não for letra ou número vira `_`
