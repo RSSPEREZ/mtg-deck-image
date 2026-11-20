@@ -11,7 +11,8 @@ O padrão é o formato **Premodern**, com a **primeira edição** de cada carta,
 <sub>Lista de Goblins campeã do MTGO Premodern Online de 28/09/2026 (40 jogadores), publicada no
 [Premodern Chronicles](https://premodernchronicles.com/decks/goblins-mtgo-premodern-online-2026-09).
 Está em [`docs/exemplo-goblins.txt`](docs/exemplo-goblins.txt); para reproduzir:
-`python run.py --main docs/exemplo-goblins.txt --title "Goblins Premodern"`.</sub>
+`python run.py --main docs/exemplo-goblins.txt --title "Goblins Premodern"`. A imagem sai em 1920×1080 (Full HD);
+para postar no Instagram, use `--size 1080x1350` ([exemplo](docs/exemplo-goblins-instagram.jpg)).</sub>
 
 > **Projeto de fã não oficial.** Magic: The Gathering, seus logos e as imagens das cartas são © Wizards of the Coast.
 > Este projeto não é aprovado nem endossado pela Wizards of the Coast. Dados e imagens via Scryfall.
@@ -74,7 +75,9 @@ Sem `git`, use **Code → Download ZIP** aqui no GitHub e extraia a pasta.
 mostrado logo abaixo do campo. Cole o **main deck** à esquerda e o **sideboard** à direita. Os botões **Colar** e
 **Limpar** ajudam no Steam Deck, e dá para colar a lista inteira no campo do main, com a linha `Sideboard` no meio.
 Cada lista mostra a contagem de cartas e avisa se faltam cartas para 60 ou se o side passou de 15, nos formatos que
-têm essas regras. Se quiser, ajuste as **colunas**, o **formato** e a **pasta** de saída (*Alterar pasta…*).
+têm essas regras. Se quiser, ajuste o **tamanho da imagem** (padrão **1920×1080, Full HD**, o tamanho ideal para vídeo),
+as **colunas** (*Auto* escolhe a que deixa as cartas maiores), o **formato** e a **pasta** de saída (*Alterar pasta…*).
+O tamanho final aparece abaixo do título, junto do nome do arquivo.
 
 ![Janela preenchida com uma lista de Goblins, pronta para gerar](docs/janela-preenchida.png)
 
@@ -136,8 +139,13 @@ python run.py --main deck.txt --side side.txt --title "Goblins"
 | `--side` | — | arquivo `.txt` do sideboard |
 | `--title` | **obrigatório** | título no topo da imagem; também dá nome ao arquivo |
 | `--format` | `premodern` | filtro de legalidade (`legacy`, `vintage`, `pauper`, `oldschool`… ou `none` para desligar) |
-| `--cols` | `8` | cartas por linha |
+| `--size` | `1920x1080` | tamanho da imagem em pixels (`LARGURAxALTURA`, de 480 a 7680 por lado) ou `original` (veja abaixo) |
+| `--cols` | `auto` | cartas por linha (`auto` ou um número, que vale para cada seção) |
 | `--out` | `Downloads/<titulo>.jpg` | caminho da imagem gerada (ignora o nome derivado do título) |
+
+Tamanhos prontos: `1920x1080` (Full HD), `1280x720` (HD), `2560x1440` (QHD), `3840x2160` (4K),
+`1080x1080` (Instagram quadrado), `1080x1350` (Instagram retrato 4:5), `1080x1920` (Stories 9:16) e `original`
+(largura pelas colunas, 8 por padrão, altura livre, cartas sempre em 488×680). A janela oferece os mesmos tamanhos.
 
 O comando retorna código `1` quando alguma carta não foi encontrada ou ficou fora do formato.
 
@@ -154,8 +162,13 @@ O comando retorna código `1` quando alguma carta não foi encontrada ou ficou f
   - Para escolher outra edição, escreva `(SET) número` na linha.
 - **Layout:** cada carta aparece uma vez, com a quantidade embaixo (`4x`). Main deck e sideboard ficam em
   seções separadas, cada uma com seu total.
-- As imagens das cartas **não são alteradas**: nada é desenhado por cima, e o texto de copyright continua visível.
-  Só os cantos são arredondados, com o raio medido em cada imagem (a Alpha tem cantos mais redondos).
+- **Tamanho fixo:** a imagem sai exatamente no tamanho escolhido. No modo *Auto*, o layout escolhe as colunas
+  (e, se couber, põe o sideboard ao lado do main) para deixar as cartas o maior possível, e centraliza o conjunto.
+  A carta nunca passa de 488×680 (o tamanho da imagem do Scryfall); com poucas cartas num tamanho grande, sobra fundo.
+  Decks grandes em tamanhos pequenos deixam as cartas pequenas, e o programa avisa.
+- As cartas **nunca recebem nada desenhado por cima**, e o texto de copyright continua visível. Quando o tamanho
+  escolhido exige, elas são **reduzidas** proporcionalmente (sem cortar nem distorcer); nunca são ampliadas.
+  Os cantos são arredondados com o raio medido em cada imagem (a Alpha tem cantos mais redondos).
 
 ## Respeito à API do Scryfall
 
@@ -190,15 +203,17 @@ O PyInstaller não faz build cruzado: o `.exe` precisa ser gerado no Windows ou 
 run.py                 ponto de entrada (sem argumentos abre a janela; com argumentos, modo linha de comando)
 deckimage/decklist.py  leitura da lista
 deckimage/scryfall.py  cliente da API (rate limit, headers, lote, cache)
-deckimage/build.py     resolução das cartas, filtro de formato e montagem da imagem
+deckimage/build.py     resolução das cartas, filtro de formato, cálculo do layout (tamanho/colunas) e montagem da imagem
 deckimage/app.py       ponto de entrada e linha de comando
 deckimage/gui.py       janela (Tkinter/ttk, tema escuro)
+tests/                 testes (pytest) do layout e da linha de comando
 deckimage/assets/      ícone da janela e do executável (logo do Groselha Crew)
 ```
 
 ## Contribuindo
 
 Issues e pull requests são bem-vindos: bugs, novos formatos de lista, opções de layout, traduções.
+Rode os testes com `pip install -r requirements-dev.txt && pytest -q`.
 Mantenha o respeito às regras do Scryfall (rate limit, headers, nada de chamadas por carta em loop)
 e à Fan Content Policy (nada de logos oficiais nem de cobrar pelo acesso às imagens).
 

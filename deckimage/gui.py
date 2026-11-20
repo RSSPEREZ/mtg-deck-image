@@ -1,6 +1,6 @@
 """Janela (Tkinter/ttk) com tema escuro feito à mão.
 
-Layout: cabeçalho; à esquerda título/colunas/formato e as listas (main e side) com contadores;
+Layout: cabeçalho; à esquerda título/colunas/formato/tamanho da imagem e as listas (main e side) com contadores;
 à direita o painel Resultado (prévia, resumo, botões e log); embaixo progresso, pasta de saída e o
 botão principal. Toda a parte pesada roda numa thread e conversa com a janela por uma fila.
 """
@@ -17,7 +17,7 @@ from tkinter import filedialog, ttk
 
 from PIL import Image, ImageTk
 
-from .build import DECK_RULES, FORMATS, Cancelled, Issue, Result, downloads_dir, filename_from_title, run
+from .build import DECK_RULES, DEFAULT_SIZE, FORMATS, SIZES, Cancelled, Issue, Result, downloads_dir, filename_from_title, run
 from .decklist import count_cards, parse_lines
 
 # ---------- paleta (mesma família de cores da imagem gerada) ----------
@@ -41,6 +41,9 @@ EXAMPLE_SIDE = """2 Pyroblast
 3 Red Elemental Blast
 """
 NO_FILTER = "(sem filtro)"
+AUTO = "Auto"
+SIZE_LABELS = [lbl for lbl, _ in SIZES]
+SIZE_BY_LABEL = dict(SIZES)
 PREVIEW_W, PREVIEW_H = 350, 180
 NARROW = 960  # abaixo dessa largura o painel Resultado desce para baixo das listas
 
@@ -188,8 +191,9 @@ class App:
         c = ttk.Frame(form)
         c.grid(row=0, column=1, rowspan=3, sticky="s", padx=(14, 0), pady=(0, 22))
         ttk.Label(c, text="Colunas").pack(anchor="w")
-        self.cols_var = tk.IntVar(value=8)
-        self.cols_box = ttk.Spinbox(c, from_=3, to=15, textvariable=self.cols_var, width=4, font=(F, 12))
+        self.cols_var = tk.StringVar(value=AUTO)
+        self.cols_box = ttk.Spinbox(c, values=[AUTO] + [str(n) for n in range(3, 16)], textvariable=self.cols_var,
+                                    width=5, font=(F, 12), wrap=False)
         self.cols_box.pack(pady=(4, 0))
         f = ttk.Frame(form)
         f.grid(row=0, column=2, rowspan=3, sticky="s", padx=(14, 0), pady=(0, 22))
@@ -198,6 +202,15 @@ class App:
         self.fmt_box = ttk.Combobox(f, textvariable=self.fmt_var, values=FORMATS + [NO_FILTER], state="readonly",
                                     width=16, font=(F, 12))
         self.fmt_box.pack(pady=(4, 0))
+
+        z = ttk.Frame(form)
+        z.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(8, 0))
+        z.columnconfigure(1, weight=1)
+        ttk.Label(z, text="Tamanho da imagem").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        self.size_var = tk.StringVar(value=next(l for l, v in SIZES if v == DEFAULT_SIZE))
+        self.size_box = ttk.Combobox(z, textvariable=self.size_var, values=SIZE_LABELS, state="readonly",
+                                     font=(F, 12))
+        self.size_box.grid(row=0, column=1, sticky="ew")
 
         self.main_txt, self.main_count = self._list_pane(left, 0, "Main deck", EXAMPLE_MAIN)
         self.side_txt, self.side_count = self._list_pane(left, 1, "Sideboard", EXAMPLE_SIDE)
@@ -235,16 +248,44 @@ class App:
         self.pbar.pack(fill="x", pady=(0, 12))
         act = ttk.Frame(foot)
         act.pack(fill="x")
+        act.columnconfigure(0, weight=1, minsize=40)
         w = ttk.Frame(act)
-        w.pack(side="left")
+        w.grid(row=0, column=0, sticky="ew")
+        w.grid_propagate(False)
+        w.configure(height=40)
         ttk.Label(w, text="Salvar em", style="Muted.TLabel").pack(anchor="w")
-        self.where = ttk.Label(w, font=(self.mono, 10))
-        self.where.pack(anchor="w")
+        self._where_font = tkfont.Font(family=self.mono, size=10)
+        self._where_full = ""
+        self.where = ttk.Label(w, font=self._where_font)
+        self.where.pack(anchor="w", fill="x")
+        w.pack_propagate(False)
+        w.bind("<Configure>", lambda e: self._fit_where())
         self.dir_btn = ttk.Button(act, text="Alterar pasta…", command=self.choose_dir)
-        self.dir_btn.pack(side="left", padx=14, pady=(8, 0))
+        self.dir_btn.grid(row=0, column=1, padx=14, pady=(8, 0))
+        ttk.Label(act, text="Ctrl+Enter", style="Muted.TLabel").grid(row=0, column=2, padx=(0, 14))
         self.go_btn = ttk.Button(act, text="Gerar imagem", style="Primary.TButton", command=self.go_or_cancel)
-        self.go_btn.pack(side="right")
-        ttk.Label(act, text="Ctrl+Enter", style="Muted.TLabel").pack(side="right", padx=14)
+        self.go_btn.grid(row=0, column=3)
+
+    def _set_where(self, text: str):
+        self._where_full = text
+        self._fit_where()
+
+    def _fit_where(self):
+        """Caminho longo: elipse no meio (mantém a pasta de origem e o nome do arquivo)."""
+        text, width = self._where_full, self.where.master.winfo_width() - 4
+        f = self._where_font
+        if width > 20 and f.measure(text) > width:
+            lo, hi = 1, len(text)
+            while lo < hi:  # maior nº de caracteres mantidos que cabe
+                mid = (lo + hi + 1) // 2
+                keep = mid
+                cand = text[: keep // 2] + "…" + text[len(text) - (keep - keep // 2):]
+                if f.measure(cand) <= width:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            text = text[: lo // 2] + "…" + text[len(text) - (lo - lo // 2):]
+        self.where.configure(text=text)
 
     def _list_pane(self, parent, col: int, title: str, text: str):
         F = self.sans
@@ -286,6 +327,7 @@ class App:
     def _bind(self):
         self.title_var.trace_add("write", lambda *_: self.update_where())
         self.fmt_var.trace_add("write", lambda *_: self.refresh_counts())
+        self.size_var.trace_add("write", lambda *_: self.update_where())
         for t in (self.main_txt, self.side_txt):
             t.bind("<<Modified>>", self._on_modified)
         for seq in ("<Control-Return>", "<Control-KP_Enter>"):
@@ -409,6 +451,13 @@ class App:
 
     _title_error = False
 
+    def size(self) -> tuple[int, int] | None:
+        return SIZE_BY_LABEL.get(self.size_var.get(), DEFAULT_SIZE)
+
+    def size_text(self) -> str:
+        sz = self.size()
+        return f"{sz[0]}×{sz[1]}" if sz else "tamanho original"
+
     def fmt(self) -> str | None:
         v = self.fmt_var.get()
         return None if v == NO_FILTER else v
@@ -421,13 +470,13 @@ class App:
             self.refresh_counts()
         try:
             name = filename_from_title(self.title_var.get())
-            self.hint.configure(text=f"Arquivo:  {name}", foreground=MUTED)
-            self.where.configure(text=str(self.out_dir / name))
+            self.hint.configure(text=f"Arquivo:  {name}  ·  {self.size_text()}", foreground=MUTED)
+            self._set_where(str(self.out_dir / name))
         except ValueError:
             if not self._title_error:
-                self.hint.configure(text="Também vira o nome do arquivo (.jpg)",
+                self.hint.configure(text=f"Também vira o nome do arquivo (.jpg)  ·  {self.size_text()}",
                                     foreground=MUTED)
-            self.where.configure(text=f"{self.out_dir}{os.sep}  (nome definido pelo título)")
+            self._set_where(f"{self.out_dir}{os.sep}  (nome definido pelo título)")
 
     def choose_dir(self):
         d = filedialog.askdirectory(parent=self.root, initialdir=str(self.out_dir), title="Pasta da imagem")
@@ -600,7 +649,8 @@ class App:
                 b.state(["disabled"] if running else ["!disabled"])
         for w in (self.title_entry, self.cols_box, self.dir_btn):
             w.state(["disabled"] if running else ["!disabled"])
-        self.fmt_box.state(["disabled"] if running else ["!disabled", "readonly"])
+        for cb in (self.fmt_box, self.size_box):
+            cb.state(["disabled"] if running else ["!disabled", "readonly"])
         self.go_btn.configure(text="Cancelar" if running else "Gerar imagem")
         self.go_btn.state(["!disabled"])
 
@@ -623,8 +673,8 @@ class App:
         try:
             cols = max(3, min(15, int(self.cols_var.get())))
         except (tk.TclError, ValueError):
-            cols = 8
-        self.cols_var.set(cols)
+            cols = None  # "Auto" (ou texto inválido): o layout escolhe
+        self.cols_var.set(AUTO if cols is None else str(cols))
         for t in (self.main_txt, self.side_txt):
             for key in TAGS:
                 t.tag_remove(key, "1.0", "end")
@@ -641,11 +691,11 @@ class App:
         self.pbar.start(12)
         self._dl_start = 0.0
         threading.Thread(target=self.worker, args=(main, side, self.title_var.get(), cols, self.fmt(),
-                                                   self.out_dir / name), daemon=True).start()
+                                                   self.out_dir / name, self.size()), daemon=True).start()
 
-    def worker(self, main, side, title, cols, fmt, out):
+    def worker(self, main, side, title, cols, fmt, out, size):
         try:
-            res = run(main, side, title=title, cols=cols, fmt=fmt, out_path=out, cancel=self.cancel,
+            res = run(main, side, title=title, cols=cols, size=size, fmt=fmt, out_path=out, cancel=self.cancel,
                       log=lambda m: self.events.put(("log", m)),
                       progress=lambda i, n, name: self.events.put(("progress", (i, n, name))))
             self.events.put(("done", res))

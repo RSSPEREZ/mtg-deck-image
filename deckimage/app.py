@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .build import filename_from_title, run
+from .build import DEFAULT_SIZE, MAX_SIDE, MIN_SIDE, filename_from_title, parse_size, run
 from .decklist import parse_lines
 
 
@@ -34,12 +34,36 @@ def gui():
     run_gui(open_file, asset)
 
 
+def _size_arg(s: str):
+    try:
+        return parse_size(s)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e))
+
+
+def _cols_arg(s: str):
+    if s.strip().lower() == "auto":
+        return None
+    try:
+        n = int(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"colunas inválidas: '{s}' (use um número de 1 a 40 ou 'auto')")
+    if not 1 <= n <= 40:
+        raise argparse.ArgumentTypeError(f"colunas fora do limite: {n} (use de 1 a 40 ou 'auto')")
+    return n
+
+
 def cli(argv: list[str]):
     p = argparse.ArgumentParser(prog="deckimage", description="Gera a imagem de uma lista MTG; o arquivo leva o nome do título.")
     p.add_argument("--main", type=Path, help="arquivo .txt do main deck (pode conter 'Sideboard')")
     p.add_argument("--side", type=Path, help="arquivo .txt do sideboard")
     p.add_argument("--title", required=True, help="título do deck; também vira o nome do arquivo (Mono Green Elves -> mono_green_elves.jpg)")
-    p.add_argument("--cols", type=int, default=8)
+    p.add_argument("--size", type=_size_arg, default=DEFAULT_SIZE, metavar="TAMANHO",
+                   help=f"tamanho da imagem: LARGURAxALTURA em pixels ({MIN_SIDE} a {MAX_SIDE} por lado), "
+                        "ex.: 1920x1080 (padrão), 1080x1350; ou 'original' (largura pelas colunas, altura livre)")
+    p.add_argument("--cols", type=_cols_arg, default=None, metavar="N|auto",
+                   help="colunas de cartas: número (1 a 40) ou 'auto' (padrão: a que deixa a carta maior; "
+                        "em 'original', 8)")
     p.add_argument("--format", default="premodern", help="filtro de legalidade (padrão premodern; 'none' desliga)")
     p.add_argument("--out", type=Path, help="padrão: ~/Downloads/<titulo>.jpg")
     a = p.parse_args(argv)
@@ -57,7 +81,7 @@ def cli(argv: list[str]):
     for b in bad:
         print(f"Linha ignorada: {b}")
     fmt = None if a.format.lower() in ("none", "") else a.format.lower()
-    res = run(main, side, title=a.title, cols=a.cols, fmt=fmt, out_path=a.out,
+    res = run(main, side, title=a.title, cols=a.cols, size=a.size, fmt=fmt, out_path=a.out,
               progress=lambda i, n, _name: print(f"\r  imagens {i}/{n}", end="", flush=True))
     print(f"\nSalvo em {res.path}")
     if res.corrected:
