@@ -48,7 +48,7 @@ def gui():
     from tkinter.scrolledtext import ScrolledText
 
     root = tk.Tk(className="DeckImageMTG")  # WM_CLASS: o atalho .desktop casa a janela por ele
-    root.title("Deck Image – MTG (projeto não oficial)")
+    root.title("Deck Image – MTG")
     try:
         root._icon = tk.PhotoImage(file=str(asset("icon.png")))  # type: ignore[attr-defined]  # logo do Groselha Crew
         root.iconphoto(True, root._icon)  # type: ignore[attr-defined]
