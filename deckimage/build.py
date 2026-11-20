@@ -85,10 +85,31 @@ def _check(cancel: threading.Event | None):
         raise Cancelled()
 
 
+def system_env() -> dict[str, str]:
+    """Ambiente para chamar programas do sistema (xdg-open, xdg-user-dir...).
+
+    O executável do PyInstaller aponta LD_LIBRARY_PATH para as bibliotecas
+    empacotadas (libstdc++, libssl do Ubuntu 22.04). Programas do sistema que
+    herdam isso, como o kde-open no SteamOS, quebram por versão de símbolo.
+    Restaura o valor original (LD_LIBRARY_PATH_ORIG) ou remove a variável.
+    """
+    env = dict(os.environ)
+    if getattr(sys, "frozen", False):
+        for var in ("LD_LIBRARY_PATH",):
+            orig = env.pop(var + "_ORIG", None)
+            if orig is not None:
+                env[var] = orig
+            else:
+                env.pop(var, None)
+    return env
+
+
 def downloads_dir() -> Path:
     if not sys.platform.startswith("win"):
         try:
-            out = subprocess.run(["xdg-user-dir", "DOWNLOAD"], capture_output=True, text=True, timeout=5)
+            out = subprocess.run(
+                ["xdg-user-dir", "DOWNLOAD"], capture_output=True, text=True, timeout=5, env=system_env()
+            )
             p = Path(out.stdout.strip())
             if out.returncode == 0 and p.is_dir() and p != Path.home():
                 return p

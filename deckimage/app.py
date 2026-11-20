@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .build import DEFAULT_SIZE, MAX_SIDE, MIN_SIDE, filename_from_title, parse_size, run
+from .build import DEFAULT_SIZE, system_env, MAX_SIDE, MIN_SIDE, filename_from_title, parse_size, run
 from .decklist import parse_lines
 
 
@@ -18,7 +18,13 @@ def open_file(path: Path):
         elif sys.platform == "darwin":
             subprocess.Popen(["open", str(path)])
         else:
-            subprocess.Popen(["xdg-open", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.Popen(
+                ["xdg-open", str(path)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                env=system_env(),
+                start_new_session=True,
+            )
     except OSError:
         pass
 
