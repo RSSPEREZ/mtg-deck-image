@@ -4,7 +4,7 @@ App desktop gratuito e de código aberto, para **Linux e Windows**. Você cola o
 de uma lista de Magic: The Gathering, ele busca as cartas no [Scryfall](https://scryfall.com/docs/api) e gera
 uma imagem única, **`final.jpg`**, na sua pasta **Downloads**.
 
-O padrão é o formato **Premodern**, com as cartas na **impressão original** (a mais antiga).
+O padrão é o formato **Premodern**, com as imagens das coleções de **Fourth Edition até Scourge** (1995–2003).
 
 > **Projeto de fã não oficial.** Magic: The Gathering, seus logos e as imagens das cartas são © Wizards of the Coast.
 > Este projeto não é aprovado nem endossado pela Wizards of the Coast. Dados e imagens via Scryfall.
@@ -117,7 +117,11 @@ O comando retorna código `1` quando alguma carta não foi encontrada ou ficou f
 - **Formato (padrão Premodern):** cartas banidas ou que não são legais no formato **não entram na imagem**
   e são listadas no aviso final. A opção *(sem filtro)* ou `--format none` desliga o filtro.
 - **Edição:** carta sem edição na lista usa a **impressão mais antiga** em papel, legal no formato e sem promo.
-  Para escolher outra edição, escreva `(SET) número` na linha.
+  - No **Premodern**, a imagem vem só das coleções lançadas **entre 1995 e 2003, de Fourth Edition até Scourge**
+    (core e expansões). Alpha, Beta e Revised ficam de fora porque destoam na imagem final.
+    Se a carta não tiver impressão nesse período, o app usa a mais antiga disponível.
+  - Nos outros formatos ou sem filtro, vale a impressão mais antiga de todas.
+  - Para escolher outra edição, escreva `(SET) número` na linha.
 - **Layout:** cada carta aparece uma vez, com a quantidade embaixo (`4x`). Main deck e sideboard ficam em
   seções separadas, cada uma com seu total.
 - As imagens das cartas **não são alteradas**: nada é desenhado por cima, e o texto de copyright continua visível.

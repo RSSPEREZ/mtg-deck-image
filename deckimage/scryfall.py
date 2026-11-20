@@ -117,19 +117,22 @@ class Client:
             missing.extend(res.get("not_found", []))
         return found, missing
 
-    def oldest_printings(self, names: list[str], fmt: str | None = None, batch: int = 20) -> list[dict]:
-        """Busca em lote a impressão mais antiga (em papel) de cada nome exato."""
+    def oldest_printings(self, names: list[str], fmt: str | None = None, extra: str = "",
+                         batch: int = 20) -> list[dict]:
+        """Busca em lote a impressão mais antiga (em papel) de cada nome exato.
+        `extra` acrescenta filtros à busca (ex.: faixa de coleções)."""
         out: list[dict] = []
         for i in range(0, len(names), batch):
             terms = " or ".join('!"' + n.replace('"', '') + '"' for n in names[i : i + batch])
             legal = f" legal:{fmt}" if fmt else ""
             url = f"{API}/cards/search?" + urllib.parse.urlencode(
-                {"q": f"({terms}){legal} game:paper -is:promo prefer:oldest", "unique": "cards"})
+                {"q": f"({terms}){legal}{extra} game:paper -is:promo prefer:oldest", "unique": "cards"})
             while url:
                 try:
                     res = self._json(url)
                 except ScryfallError as e:
-                    self.log(f"  aviso: busca da edição mais antiga falhou ({e}); mantendo a padrão")
+                    if "HTTP 404" not in str(e):  # 404 = nenhuma carta no filtro, não é erro
+                        self.log(f"  aviso: busca de edição falhou ({e}); mantendo a padrão")
                     break
                 out.extend(res.get("data", []))
                 url = res.get("next_page") if res.get("has_more") else None

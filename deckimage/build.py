@@ -86,15 +86,31 @@ def _oracle(card: dict) -> str | None:
     return card.get("oracle_id") or (card.get("card_faces") or [{}])[0].get("oracle_id")
 
 
+# Coleções de onde vêm as imagens: Fourth Edition (1995) até Scourge (2003), só core e expansões
+# (fica de fora Alpha/Beta/Revised, Portal, Unglued, decks de caixa etc.).
+PRINT_ERA = " date>=4ed date<=scg (st:core or st:expansion)"
+
+
 def _use_oldest_printing(client: Client, items: list[Resolved], fmt: str | None = None):
-    """Sem edição na lista -> troca pela impressão mais antiga (evita Marvel, Star Trek etc.)."""
+    """Sem edição na lista -> impressão mais antiga (evita Marvel, Star Trek etc.).
+    No Premodern, só entre Fourth Edition e Scourge; se não houver, cai para a mais antiga em geral."""
     todo = [r for r in items if r.card and not r.entry.set_code]
     if not todo:
         return
     names = list(dict.fromkeys(r.card["name"] for r in todo))
-    oldest = {_oracle(c): c for c in client.oldest_printings(names, fmt)}
+    if fmt != "premodern":  # a faixa de coleções só vale para Premodern
+        chosen = {_oracle(c): c for c in client.oldest_printings(names, fmt)}
+        for r in todo:
+            r.card = chosen.get(_oracle(r.card), r.card)
+        return
+    chosen = {_oracle(c): c for c in client.oldest_printings(names, fmt, PRINT_ERA)}
+    rest = list(dict.fromkeys(r.card["name"] for r in todo if _oracle(r.card) not in chosen))
+    if rest:
+        client.log(f"  sem impressão entre Fourth Edition e Scourge: {', '.join(rest)} — usando a mais antiga")
+        for c in client.oldest_printings(rest, fmt):
+            chosen.setdefault(_oracle(c), c)
     for r in todo:
-        r.card = oldest.get(_oracle(r.card), r.card)
+        r.card = chosen.get(_oracle(r.card), r.card)
 
 
 def _merge_same_card(items: list[Resolved]) -> list[Resolved]:
