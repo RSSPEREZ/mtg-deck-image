@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt pyinstaller
-      - run: pyinstaller --noconfirm --onefile --windowed --name DeckImageMTG --icon deckimage/assets/icon.ico --add-data "deckimage/assets:deckimage/assets" run.py
+      - run: pyinstaller --noconfirm --onefile --windowed --name DeckImageMTG --icon deckimage/assets/icon.ico --add-data "deckimage/assets:deckimage/assets" --hidden-import PIL._tkinter_finder run.py
       - uses: actions/upload-artifact@v7
         with:
           name: DeckImageMTG-${{ runner.os }}

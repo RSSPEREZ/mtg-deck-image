@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # "4 Lightning Bolt", "4x Lightning Bolt", "4 Lightning Bolt (M10) 146", "Lightning Bolt"
 _LINE = re.compile(
@@ -22,6 +22,8 @@ class Entry:
     name: str
     set_code: str | None = None
     collector_number: str | None = None
+    # de onde veio: [(origem, nº da linha a partir de 1)], para a janela marcar a linha depois
+    lines: list[tuple[str, int]] = field(default_factory=list)
 
     def identifier(self) -> dict:
         if self.set_code and self.collector_number:
@@ -32,8 +34,8 @@ class Entry:
         return {"name": self.name.split(" // ")[0]}
 
 
-def parse_lines(text: str) -> tuple[list[Entry], list[Entry], list[str]]:
-    """Devolve (main, side, linhas_invalidas).
+def parse_lines(text: str, source: str = "main") -> tuple[list[Entry], list[Entry], list[str]]:
+    """Devolve (main, side, linhas_invalidas). `source` identifica o campo de origem em Entry.lines.
 
     Uma linha "Sideboard" (ou prefixo "SB:") dentro do texto manda o resto para o side,
     então dá para colar a lista inteira num campo só.
@@ -42,7 +44,7 @@ def parse_lines(text: str) -> tuple[list[Entry], list[Entry], list[str]]:
     side: list[Entry] = []
     bad: list[str] = []
     target = main
-    for raw in text.splitlines():
+    for lineno, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
         if not line or line.startswith(("//", "#")):
             continue
@@ -63,7 +65,7 @@ def parse_lines(text: str) -> tuple[list[Entry], list[Entry], list[str]]:
         if qty <= 0:
             bad.append(raw)
             continue
-        dest.append(Entry(qty, m.group("name").strip(), m.group("set"), m.group("num")))
+        dest.append(Entry(qty, m.group("name").strip(), m.group("set"), m.group("num"), [(source, lineno)]))
     return _merge(main), _merge(side), bad
 
 
@@ -74,6 +76,11 @@ def _merge(entries: list[Entry]) -> list[Entry]:
         key = (e.name.lower(), (e.set_code or "").lower(), e.collector_number or "")
         if key in out:
             out[key].qty += e.qty
+            out[key].lines += e.lines
         else:
-            out[key] = Entry(e.qty, e.name, e.set_code, e.collector_number)
+            out[key] = Entry(e.qty, e.name, e.set_code, e.collector_number, list(e.lines))
     return list(out.values())
+
+
+def count_cards(entries: list[Entry]) -> int:
+    return sum(e.qty for e in entries)

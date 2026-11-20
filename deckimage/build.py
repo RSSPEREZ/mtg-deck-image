@@ -4,9 +4,11 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-import unicodedata
 import sys
-from dataclasses import dataclass
+import threading
+import time
+import unicodedata
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -48,6 +50,39 @@ class Resolved:
     entry: Entry
     card: dict | None
     image: Path | None = None
+    typed_name: str | None = None  # nome como estava na lista, quando a carta veio por aproximação
+
+
+@dataclass
+class Issue:
+    """Carta com algo a avisar: corrigida por aproximação, fora do formato ou não encontrada."""
+    name: str          # nome na lista
+    detail: str        # ex.: "Goblin Matron", "banida", "não legal"
+    qty: int
+    lines: list[tuple[str, int]] = field(default_factory=list)
+
+
+@dataclass
+class Result:
+    path: Path
+    corrected: list[Issue]
+    illegal: list[Issue]
+    missing: list[Issue]
+    images: int        # imagens distintas na composição
+    cached: int        # quantas já estavam no cache local
+    seconds: float
+    size: tuple[int, int]
+    main_count: int
+    side_count: int
+
+
+class Cancelled(Exception):
+    """Geração interrompida pelo usuário."""
+
+
+def _check(cancel: threading.Event | None):
+    if cancel is not None and cancel.is_set():
+        raise Cancelled()
 
 
 def downloads_dir() -> Path:
@@ -65,7 +100,9 @@ def downloads_dir() -> Path:
 
 
 # ---------- resolução ----------
-def resolve(client: Client, entries: list[Entry], fmt: str | None = None) -> list[Resolved]:
+def resolve(client: Client, entries: list[Entry], fmt: str | None = None,
+            corrected: list[Issue] | None = None) -> list[Resolved]:
+    """`corrected`, se passado, recebe as cartas achadas por aproximação (antes de juntar repetidas)."""
     if not entries:
         return []
     found, _ = client.collection([e.identifier() for e in entries])
@@ -93,8 +130,13 @@ def resolve(client: Client, entries: list[Entry], fmt: str | None = None) -> lis
             card = client.named_fuzzy(e.name, e.set_code)
             if card:
                 client.log(f"    -> {card['name']}")
+                out.append(Resolved(e, card, typed_name=e.name))
+                continue
         out.append(Resolved(e, card))
     _use_oldest_printing(client, out, fmt)
+    if corrected is not None:
+        corrected += [Issue(r.typed_name, r.card["name"], r.entry.qty, list(r.entry.lines))
+                      for r in out if r.typed_name and r.card]
     return _merge_same_card(out)
 
 
@@ -137,21 +179,24 @@ def _merge_same_card(items: list[Resolved]) -> list[Resolved]:
         key = r.card["id"]
         if key in merged:
             merged[key].entry.qty += r.entry.qty
+            merged[key].entry.lines += r.entry.lines
         else:
             merged[key] = r
             out.append(r)
     return out
 
 
-def fetch_images(client: Client, items: list[Resolved], progress=None):
+def fetch_images(client: Client, items: list[Resolved], progress=None, cancel: threading.Event | None = None):
+    """progress(i, total, nome_da_carta) é chamado depois de cada imagem."""
     total = len(items)
     for i, r in enumerate(items, 1):
+        _check(cancel)
         if r.card:
             url = front_image_url(r.card)
             if url:
                 r.image = client.image(url)
         if progress:
-            progress(i, total)
+            progress(i, total, r.card["name"] if r.card else r.entry.name)
 
 
 # ---------- composição ----------
@@ -273,24 +318,33 @@ def is_legal(card: dict, fmt: str) -> bool:
     return card.get("legalities", {}).get(fmt) in ("legal", "restricted")
 
 
-def _drop_illegal(items: list[Resolved], fmt: str | None, log) -> tuple[list[Resolved], list[str]]:
+def _drop_illegal(items: list[Resolved], fmt: str | None, log) -> tuple[list[Resolved], list[Issue]]:
     if not fmt:
         return items, []
     keep, illegal = [], []
     for r in items:
         if r.card and not is_legal(r.card, fmt):
             status = r.card.get("legalities", {}).get(fmt, "not_legal")
-            illegal.append(f"{r.entry.qty}x {r.card['name']} ({'banida' if status == 'banned' else 'não legal'})")
+            illegal.append(Issue(r.card["name"], "banida" if status == "banned" else "não legal",
+                                 r.entry.qty, list(r.entry.lines)))
             log(f"  fora do formato {fmt}: {r.card['name']} ({status}) — removida da imagem")
         else:
             keep.append(r)
     return keep, illegal
 
 
+# Formatos com mínimo de cartas no main e máximo no side, para os avisos da janela.
+DECK_RULES = {f: (60, 15) for f in ("premodern", "oldschool", "vintage", "legacy", "pauper", "modern",
+                                    "pioneer", "standard", "penny")}
+DECK_RULES.update({"commander": (100, 0), "predh": (100, 0)})
+
+
 def run(main_entries: list[Entry], side_entries: list[Entry], *, title: str, cols=8, fmt: str | None = "premodern",
-        out_path: Path | None = None, log=print, progress=None) -> tuple[Path, list[str], list[str]]:
-    """Devolve (caminho, nao_encontradas, fora_do_formato). fmt=None desliga o filtro.
-    O título é obrigatório e dá nome ao arquivo (ver filename_from_title), salvo se out_path for passado."""
+        out_path: Path | None = None, log=print, progress=None, cancel: threading.Event | None = None) -> Result:
+    """Gera a imagem e devolve um Result. fmt=None desliga o filtro.
+    O título é obrigatório e dá nome ao arquivo (ver filename_from_title), salvo se out_path for passado.
+    Com `cancel` setado, levanta Cancelled no próximo ponto de checagem (nada é gravado)."""
+    t0 = time.monotonic()
     title = title.strip()
     if not title:
         raise ValueError("Informe o título do deck.")
@@ -298,12 +352,20 @@ def run(main_entries: list[Entry], side_entries: list[Entry], *, title: str, col
     client = Client(log=log)
     log(f"Consultando Scryfall ({len(main_entries) + len(side_entries)} cartas distintas)"
         + (f", formato {fmt}…" if fmt else "…"))
-    main, ill_main = _drop_illegal(resolve(client, main_entries, fmt), fmt, log)
-    side, ill_side = _drop_illegal(resolve(client, side_entries, fmt), fmt, log)
+    corrected: list[Issue] = []
+    main, ill_main = _drop_illegal(resolve(client, main_entries, fmt, corrected), fmt, log)
+    _check(cancel)
+    side, ill_side = _drop_illegal(resolve(client, side_entries, fmt, corrected), fmt, log)
+    _check(cancel)
     all_items = main + side
     log("Baixando imagens (com cache local)…")
-    fetch_images(client, all_items, progress)
-    not_found = [r.entry.name for r in all_items if r.card is None]
+    fetch_images(client, all_items, progress, cancel)
+    _check(cancel)
+    missing = [Issue(r.entry.name, "não encontrada", r.entry.qty, list(r.entry.lines))
+               for r in all_items if r.card is None]
     compose(main, side, out, title=title, cols=cols)
     log(f"Requisições feitas ao Scryfall: {client.requests_made}")
-    return out, not_found, ill_main + ill_side
+    with Image.open(out) as im:
+        size = im.size
+    return Result(out, corrected, ill_main + ill_side, missing, sum(1 for r in all_items if r.image), client.cache_hits,
+                  time.monotonic() - t0, size, sum(r.entry.qty for r in main), sum(r.entry.qty for r in side))

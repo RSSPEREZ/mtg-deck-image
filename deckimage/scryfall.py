@@ -61,6 +61,7 @@ class Client:
         self._last = 0.0
         self.log = log
         self.requests_made = 0
+        self.cache_hits = 0
 
     # ---------- baixo nível ----------
     def _wait_turn(self):
@@ -154,6 +155,7 @@ class Client:
         ext = Path(urllib.parse.urlparse(url).path).suffix or ".jpg"
         path = cache_dir() / (hashlib.sha1(url.encode()).hexdigest() + ext)
         if path.exists() and path.stat().st_size > 0:
+            self.cache_hits += 1
             return path
         content = self._request(url, accept="*/*")
         tmp = path.with_suffix(path.suffix + ".part")

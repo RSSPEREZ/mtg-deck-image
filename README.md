@@ -68,11 +68,17 @@ Sem `git`, use **Code → Download ZIP** aqui no GitHub e extraia a pasta.
 
 ### Pela janela
 
-1. Cole o **main deck** no campo da esquerda e o **sideboard** no da direita.
-2. Preencha o **título** (obrigatório): ele aparece no topo da imagem e dá nome ao arquivo.
-   Se quiser, ajuste o número de **colunas** e o **formato**.
-3. Clique em **Gerar imagem**.
-4. No fim, o app mostra onde salvou a imagem, quais cartas ficaram de fora e se quer abrir a imagem.
+![Janela do DeckImageMTG depois de gerar uma imagem](docs/janela.png)
+
+1. Dê um **título** ao deck (obrigatório): ele aparece no topo da imagem e dá nome ao arquivo.
+2. Cole o **main deck** no campo da esquerda e o **sideboard** no da direita (os botões **Colar** e **Limpar**
+   ajudam no Steam Deck). Cada lista mostra a contagem de cartas e avisa se faltam cartas para 60 ou se o side
+   passou de 15, nos formatos que têm essas regras.
+3. Se quiser, ajuste as **colunas**, o **formato** e a **pasta** onde a imagem será salva (*Alterar pasta…*).
+4. Clique em **Gerar imagem** (ou **Ctrl+Enter**). Durante a geração, o botão vira **Cancelar**.
+5. No painel **Resultado** aparecem a prévia, as cartas corrigidas por aproximação, removidas (fora do formato) ou
+   não encontradas, e os botões **Abrir imagem**, **Abrir pasta** e **Copiar caminho**. As linhas com problema
+   ficam marcadas na própria lista. *Ver log* mostra os detalhes técnicos.
 
 A imagem vai para a pasta Downloads (`~/Downloads` no Linux, `C:\Users\<você>\Downloads` no Windows).
 O nome do arquivo sai do título: minúsculas, sem acentos, e o que não for letra ou número vira `_`
@@ -167,7 +173,8 @@ run.py                 ponto de entrada (sem argumentos abre a janela; com argum
 deckimage/decklist.py  leitura da lista
 deckimage/scryfall.py  cliente da API (rate limit, headers, lote, cache)
 deckimage/build.py     resolução das cartas, filtro de formato e montagem da imagem
-deckimage/app.py       janela (Tkinter) e linha de comando
+deckimage/app.py       ponto de entrada e linha de comando
+deckimage/gui.py       janela (Tkinter/ttk, tema escuro)
 deckimage/assets/      ícone da janela e do executável (logo do Groselha Crew)
 ```
 
