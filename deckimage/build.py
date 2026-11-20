@@ -102,28 +102,25 @@ def _oracle(card: dict) -> str | None:
     return card.get("oracle_id") or (card.get("card_faces") or [{}])[0].get("oracle_id")
 
 
-# Coleções de onde vêm as imagens: Fourth Edition (1995) até Scourge (2003), só core e expansões
-# (fica de fora Alpha/Beta/Revised, Portal, Unglued, decks de caixa etc.).
-PRINT_ERA = " date>=4ed date<=scg (st:core or st:expansion)"
+# Primeira escolha de imagem: a impressão mais antiga com borda preta (a branca contrasta demais com o
+# fundo escuro). Fica de fora memorabilia (Collectors' Edition, 30th Anniversary) e coleções de humor.
+BLACK_BORDER = " border:black -st:memorabilia -st:funny"
 
 
 def _use_oldest_printing(client: Client, items: list[Resolved], fmt: str | None = None):
-    """Sem edição na lista -> impressão mais antiga (evita Marvel, Star Trek etc.).
-    No Premodern, só entre Fourth Edition e Scourge; se não houver, cai para a mais antiga em geral."""
+    """Sem edição na lista -> impressão mais antiga com borda preta; se a carta só existir com borda
+    branca (ou prateada), a mais antiga de todas. Evita Marvel, Star Trek etc."""
     todo = [r for r in items if r.card and not r.entry.set_code]
     if not todo:
         return
     names = list(dict.fromkeys(r.card["name"] for r in todo))
-    if fmt != "premodern":  # a faixa de coleções só vale para Premodern
-        chosen = {_oracle(c): c for c in client.oldest_printings(names, fmt)}
-        for r in todo:
-            r.card = chosen.get(_oracle(r.card), r.card)
-        return
-    chosen = {_oracle(c): c for c in client.oldest_printings(names, fmt, PRINT_ERA)}
+    chosen = {_oracle(c): c for c in client.oldest_printings(names, fmt, BLACK_BORDER)}
     rest = list(dict.fromkeys(r.card["name"] for r in todo if _oracle(r.card) not in chosen))
     if rest:
-        client.log(f"  sem impressão entre Fourth Edition e Scourge: {', '.join(rest)} — usando a mais antiga")
-        for c in client.oldest_printings(rest, fmt):
+        fallback = client.oldest_printings(rest, fmt)
+        if fallback:
+            client.log(f"  sem impressão de borda preta: {', '.join(c['name'] for c in fallback)} — usando a mais antiga")
+        for c in fallback:
             chosen.setdefault(_oracle(c), c)
     for r in todo:
         r.card = chosen.get(_oracle(r.card), r.card)
@@ -182,18 +179,33 @@ def _section_height(n: int, cols: int) -> int:
     return 90 + rows * (CARD_H + LABEL_H) + (rows - 1) * GAP
 
 
-_MASK: Image.Image | None = None
+BASE_RADIUS = 23  # raio do canto da carta moderna (~4,7% da largura)
+_MASKS: dict[int, Image.Image] = {}
 
 
-def _corner_mask() -> Image.Image:
-    """Máscara com cantos arredondados (raio ~4,7% da largura, como na carta física), suavizada."""
-    global _MASK
-    if _MASK is None:
-        k = 4  # desenha em 4x e reduz, para a borda sair sem serrilhado
+def _corner_radius(img: Image.Image) -> int:
+    """Mede o canto do JPG pela diagonal: o fundo claro vai até ~0,29·r. A Alpha tem cantos bem mais
+    redondos (r≈34) que as outras edições (r≈20); com o raio fixo sobrava branco nas quinas."""
+    g = img.convert("L")
+    w, h = g.size
+    clear = 0
+    for fx, fy in ((lambda i: i, lambda i: i), (lambda i: w - 1 - i, lambda i: i),
+                   (lambda i: i, lambda i: h - 1 - i), (lambda i: w - 1 - i, lambda i: h - 1 - i)):
+        n = 0  # os 4 cantos: o scan nem sempre é simétrico, vale o maior
+        while n < min(80, w, h) and g.getpixel((fx(n), fy(n))) >= 128:
+            n += 1
+        clear = max(clear, n)
+    return max(BASE_RADIUS, round(clear / 0.29) + 3)
+
+
+def _corner_mask(radius: int = BASE_RADIUS) -> Image.Image:
+    """Máscara com cantos arredondados, suavizada (desenhada em 4x e reduzida)."""
+    if radius not in _MASKS:
+        k = 4
         big = Image.new("L", (CARD_W * k, CARD_H * k), 0)
-        ImageDraw.Draw(big).rounded_rectangle((0, 0, CARD_W * k - 1, CARD_H * k - 1), radius=23 * k, fill=255)
-        _MASK = big.resize((CARD_W, CARD_H), Image.LANCZOS)
-    return _MASK
+        ImageDraw.Draw(big).rounded_rectangle((0, 0, CARD_W * k - 1, CARD_H * k - 1), radius=radius * k, fill=255)
+        _MASKS[radius] = big.resize((CARD_W, CARD_H), Image.LANCZOS)
+    return _MASKS[radius]
 
 
 def _missing_card(name: str) -> Image.Image:
@@ -239,7 +251,8 @@ def compose(main: list[Resolved], side: list[Resolved], out_path: Path,
                     card_img = card_img.resize((CARD_W, CARD_H), Image.LANCZOS)
             else:
                 card_img = _missing_card(r.entry.name)
-            canvas.paste(card_img, (x, cy), _corner_mask())  # cantos arredondados, sem o branco do JPG
+            mask = _corner_mask(_corner_radius(card_img) if r.image else BASE_RADIUS)
+            canvas.paste(card_img, (x, cy), mask)  # cantos arredondados, sem o branco do JPG
             # quantidade fica ABAIXO da carta para não cobrir nada da imagem (inclusive o copyright)
             d.text((x + CARD_W // 2, cy + CARD_H + LABEL_H // 2), f"{r.entry.qty}x",
                    font=f_qty, fill=FG, anchor="mm")

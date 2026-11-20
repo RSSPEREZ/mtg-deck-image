@@ -4,7 +4,7 @@ App desktop gratuito e de código aberto, para **Linux e Windows**. Você cola o
 de uma lista de Magic: The Gathering, ele busca as cartas no [Scryfall](https://scryfall.com/docs/api) e gera
 uma imagem única na sua pasta **Downloads**, com o nome do deck: o título *Mono Green Elves* vira **`mono_green_elves.jpg`**.
 
-O padrão é o formato **Premodern**, com as imagens das coleções de **Fourth Edition até Scourge** (1995–2003).
+O padrão é o formato **Premodern**, com a **primeira edição** de cada carta, de preferência com **borda preta**.
 
 ![Exemplo: imagem gerada a partir de uma lista de Goblins no Premodern](docs/exemplo-goblins.jpg)
 
@@ -123,15 +123,15 @@ O comando retorna código `1` quando alguma carta não foi encontrada ou ficou f
 
 - **Formato (padrão Premodern):** cartas banidas ou que não são legais no formato **não entram na imagem**
   e são listadas no aviso final. A opção *(sem filtro)* ou `--format none` desliga o filtro.
-- **Edição:** carta sem edição na lista usa a **impressão mais antiga** em papel, legal no formato e sem promo.
-  - No **Premodern**, a imagem vem só das coleções lançadas **entre 1995 e 2003, de Fourth Edition até Scourge**
-    (core e expansões). Alpha, Beta e Revised ficam de fora porque destoam na imagem final.
-    Se a carta não tiver impressão nesse período, o app usa a mais antiga disponível.
-  - Nos outros formatos ou sem filtro, vale a impressão mais antiga de todas.
+- **Edição:** carta sem edição na lista usa a **impressão mais antiga com borda preta** (em papel, legal no
+  formato, sem promo, sem Collectors' Edition), porque a borda branca contrasta demais com o fundo escuro.
+  Na prática, Lightning Bolt e os terrenos básicos saem da Alpha, e Fyndhorn Elves sai da Ice Age.
+  - Se a carta só existir com borda branca, vale a impressão mais antiga de todas.
   - Para escolher outra edição, escreva `(SET) número` na linha.
 - **Layout:** cada carta aparece uma vez, com a quantidade embaixo (`4x`). Main deck e sideboard ficam em
   seções separadas, cada uma com seu total.
 - As imagens das cartas **não são alteradas**: nada é desenhado por cima, e o texto de copyright continua visível.
+  Só os cantos são arredondados, com o raio medido em cada imagem (a Alpha tem cantos mais redondos).
 
 ## Respeito à API do Scryfall
 
