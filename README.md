@@ -6,6 +6,11 @@ uma imagem única, **`final.jpg`**, na sua pasta **Downloads**.
 
 O padrão é o formato **Premodern**, com as imagens das coleções de **Fourth Edition até Scourge** (1995–2003).
 
+![Exemplo: imagem gerada a partir de uma lista de Goblins no Premodern](docs/exemplo-goblins.jpg)
+
+<sub>Exemplo gerado a partir de [`docs/exemplo-goblins.txt`](docs/exemplo-goblins.txt). Para reproduzir:
+`python run.py --main docs/exemplo-goblins.txt --title "Goblins – Premodern"`.</sub>
+
 > **Projeto de fã não oficial.** Magic: The Gathering, seus logos e as imagens das cartas são © Wizards of the Coast.
 > Este projeto não é aprovado nem endossado pela Wizards of the Coast. Dados e imagens via Scryfall.
 > Uso livre e gratuito, conforme a [Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy).
